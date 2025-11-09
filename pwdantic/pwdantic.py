@@ -1,11 +1,11 @@
 from pydantic import BaseModel
 import abc
 import sqlite3
-from typing import Any
 
 from pwdantic.exceptions import NO_BIND
 from pwdantic.sqlite import SqliteEngine
 from pwdantic.interfaces import PWEngine
+
 
 class PWEngineFactory(abc.ABC):
     @classmethod

@@ -1,6 +1,7 @@
 import abc
 from typing import Any
 
+
 class PWEngine(abc.ABC):
 
     def select(
