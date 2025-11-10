@@ -20,3 +20,7 @@ class PWBindViolationError(Exception):
 class PWUnboundDeleteError(Exception):
     def __init__(self):
         super().__init__("You cannot delete an object that is not in the db")
+
+class PWMigrationError(Exception):
+    def __init__(self):
+        super().__init__("PW cant automatically migrate the schemas, consider manual migration")

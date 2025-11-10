@@ -22,6 +22,8 @@ def main():
 
     Duck.bind(engine)
 
+    return
+
     mc_duck_junior = Duck(
         name="Junior",
         age=15,

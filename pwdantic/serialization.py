@@ -114,6 +114,7 @@ class GeneralSQLSerializer:
 
             if standard_col.name == primary:
                 standard_col.primary_key = True
+                standard_col.nullable = False
 
             if standard_col.name in unique:
                 standard_col.unique = True
