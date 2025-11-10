@@ -3,6 +3,7 @@ from typing import Any
 
 from pwdantic.interfaces import PWEngine
 from pwdantic.serialization import SQLColumn
+from pwdantic.migrations import MigrationEngine, Migration
 
 sqlite_column = tuple[int, str, str, int, Any, int]
 
@@ -154,18 +155,24 @@ class SqliteEngine(PWEngine):
 
         return standard_cols
 
+    def execute_migration(self, migration: Migration, force: bool = False):
+        # validate migration is executable
+        # create a new table
+        # copy the data over
+        # drop old table
+        # rename new table
+        pass  # TODO
+
     def _migrate_from(self, table: str, new_columns: list[SQLColumn]):
         for col in new_columns:
             if col.datatype == "bytes" and col.default is not None:
                 col.default = self._represent_bytes(col.default)
-                
-            print(col)
-
-        print()
 
         current_columns = self._get_SQLColumns(table)
-        for col in current_columns:
-            print(col)
+
+        me = MigrationEngine()
+        migration = me.generate_migration(current_columns, new_columns)
+        self.execute_migration(migration)
 
     def migrate(self, table: str, columns: list[SQLColumn]):
         matched_tables = self.cursor.execute(
