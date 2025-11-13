@@ -1,19 +1,19 @@
 from pwdantic.pwdantic import PWModel, PWEngineFactory, PWEngine
-from pwdantic.migrations import *
-from pwdantic.datatypes import SQLType, SQLColumn
+from pwdantic.datatypes import *
 
 
 class MigrationTestModelOld(PWModel):
     pk: int | None = None
-    unq_string: str
+    unq_string: str = "asdf"
     nullable_int: int | None = None
+    modify_me: int
 
     @classmethod
     def bind(cls, engine):
         super().bind(
             engine,
             primary_key="pk",
-            unique=["unq_string"],
+            unique=["unq_string", "modify_me"],
             table="migration_test",
         )
 
@@ -34,7 +34,7 @@ class MigrationTestModelNew(PWModel):
         )
 
 
-def test_migrations(engine: PWEngine):
+def automatic_migration(engine: PWEngine):
     MigrationTestModelOld.bind(engine)
     MigrationTestModelNew.bind(engine)
 
@@ -42,16 +42,30 @@ def test_migrations(engine: PWEngine):
 def manual_migration(engine: PWEngine):
     MigrationTestModelOld.bind(engine)
 
-    migration = [
-        AddCol(SQLColumn("new_col", SQLType.string, True, "default"))
+    a = MigrationTestModelOld(unq_string="hello", modify_me=8)
+    b = MigrationTestModelOld(modify_me=5, nullable_int=1)
+
+    a.save()
+    b.save()
+
+    valid_migration_steps = [
+        RenameCol("nullable_int", "the_same_int"),
+        RenameCol("modify_me", "i_am_modified"),
+        AddConstraint("modify_me", SQLConstraint.nullable),
+        RemoveConstraint("modify_me", SQLConstraint.unique),
+        AddCol(SQLColumn("new_col", SQLType.string.value, True, "default")),
     ]
 
-    engine.migrate()
+    valid_migration = Migration("migration_test", valid_migration_steps)
+
+    engine.execute_migration(valid_migration, False)
+
+    a.delete()
+    b.delete()
 
 
 def main():
     engine = PWEngineFactory.create_sqlite3_engine("test.db")
-    # test_migrations(engine)
     manual_migration(engine)
 
 

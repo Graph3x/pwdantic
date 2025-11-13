@@ -13,8 +13,8 @@ DEFAULT_PRIM_KEYS = ["id", "primary_key", "uuid"]
 
 
 class PWEngineFactory(abc.ABC):
-    @classmethod
-    def create_sqlite3_engine(cls, database: str = "") -> PWEngine:
+    @staticmethod
+    def create_sqlite3_engine(database: str = "") -> PWEngine:
         conn = sqlite3.connect(database)
         return SqliteEngine(conn)
 

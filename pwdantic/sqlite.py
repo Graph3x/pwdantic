@@ -3,6 +3,7 @@ from typing import Any
 
 from pwdantic.datatypes import PWEngine, SQLColumn
 from pwdantic.migrations import MigrationEngine, Migration
+from pwdantic.exceptions import PWDestructiveMigrationError
 
 sqlite_column = tuple[int, str, str, int, Any, int]
 
@@ -76,7 +77,7 @@ class SqliteEngine(PWEngine):
 
         return types[str_type]
 
-    def _create_new(self, classname: str, standard_cols: list[SQLColumn]):
+    def _create_table(self, tablename: str, standard_cols: list[SQLColumn]):
         sqlite_cols = []
         for column in standard_cols:
             lite_col = f"{column.name} {self._transfer_type_from_standard(column.datatype)}"
@@ -93,7 +94,9 @@ class SqliteEngine(PWEngine):
                 lite_col += " UNIQUE"
 
             if column.default is not None:
-                if column.datatype != "bytes":
+                if column.datatype == "string":
+                    lite_col += f" DEFAULT '{column.default.replace("'", "").replace('"', '')}'"
+                elif column.datatype != "bytes":
                     lite_col += f" DEFAULT {column.default}"
                 else:
                     lite_col += (
@@ -102,10 +105,19 @@ class SqliteEngine(PWEngine):
 
             sqlite_cols.append(lite_col)
 
-        self.cursor.execute(
-            f"CREATE TABLE IF NOT EXISTS {classname} ({','.join(sqlite_cols)})"
-        )
+        query = f"CREATE TABLE IF NOT EXISTS {tablename} ({','.join(sqlite_cols)})"
+        self.cursor.execute(query)
 
+        self.conn.commit()
+
+    def _drop_table(self, table: str):
+        query = f"DROP TABLE IF EXISTS {table}"
+        self.cursor.execute(query)
+        self.conn.commit()
+
+    def _rename_table(self, old_table: str, new_table: str):
+        query = f"ALTER TABLE {old_table} RENAME TO {new_table}"
+        self.cursor.execute(query)
         self.conn.commit()
 
     def _parse_raw_column(self, column: str) -> SQLColumn:
@@ -154,13 +166,55 @@ class SqliteEngine(PWEngine):
 
         return standard_cols
 
-    def execute_migration(self, migration: Migration, force: bool = False):
-        # validate migration is executable and not destructive
-        # create a new table
-        # copy the data over
-        # drop old table
-        # rename new table
-        pass  # TODO
+    def execute_migration(
+        self,
+        migration: Migration,
+        force: bool = False,
+        _current_cols: list[SQLColumn] = None,
+    ):
+
+        me = MigrationEngine()
+
+        if len(migration.steps) < 1:
+            return
+
+        if not force and migration.is_destructive():
+            raise PWDestructiveMigrationError()
+
+        if _current_cols is None:
+            _current_cols = self._get_SQLColumns(migration.table)
+
+        new_cols = me.get_migrated_cols(_current_cols, migration)
+
+        temp_table = f"_temp_migrate_{migration.table}"
+        self._create_table(temp_table, new_cols)
+
+        current = self.select("*", migration.table, None)
+        val_string = ", ".join(["?"] * len(_current_cols))
+
+        renamed = me.get_renamed_mapping(migration)
+        not_dropped = [x.name for x in new_cols]
+        col_str = ", ".join(
+            [
+                renamed.get(x.name, x.name)
+                for x in _current_cols
+                if renamed.get(x.name, x.name) in not_dropped
+            ]
+        )
+
+        try:
+            for row in current:
+                query = f"INSERT INTO {temp_table} ({col_str}) VALUES({val_string})"
+                self.cursor.execute(query, row)
+
+            self.conn.commit()
+
+        except Exception as e:
+            self._drop_table(temp_table)
+            raise e
+
+        self._drop_table(migration.table)
+        self._rename_table(temp_table, migration.table)
 
     def _migrate_from(self, table: str, new_columns: list[SQLColumn]):
         for col in new_columns:
@@ -169,8 +223,9 @@ class SqliteEngine(PWEngine):
 
         current_columns = self._get_SQLColumns(table)
 
-        me = MigrationEngine()
-        migration = me.generate_migration(current_columns, new_columns)
+        migration = MigrationEngine().generate_migration(
+            table, current_columns, new_columns
+        )
         self.execute_migration(migration)
 
     def migrate(self, table: str, columns: list[SQLColumn]):
@@ -179,7 +234,7 @@ class SqliteEngine(PWEngine):
         ).fetchall()
 
         if len(matched_tables) == 0:
-            return self._create_new(table, columns)
+            return self._create_table(table, columns)
 
         else:
             return self._migrate_from(table, columns)

@@ -1,8 +1,21 @@
 import abc
 from typing import Any
+from enum import Enum
 
 
-Migration = list["MigrationStep"]
+class SQLType(Enum):
+    integer = "integer"
+    date_time = "date-time"
+    string = "string"
+    number = "number"
+    boolean = "boolean"
+    byte_data = "bytes"
+
+
+class SQLConstraint(Enum):
+    primary = "primary"
+    nullable = "nullable"
+    unique = "unique"
 
 
 class SQLColumn:
@@ -31,16 +44,16 @@ class InvalidMigrationError(Exception):
 
 
 class MigrationStep:
-    desctructive: bool = False
+    _destructive: bool = False
 
 
 class DesctructiveMigrationStep(MigrationStep):
-    desctructive: bool = True
+    _destructive: bool = True
 
 
 class AddCol(MigrationStep):
     def __init__(self, column: SQLColumn):
-        self.column = SQLColumn
+        self.column = column
 
 
 class DropCol(DesctructiveMigrationStep):
@@ -66,11 +79,52 @@ class AddConstraint(MigrationStep):
         self.column_name = column_name
         self.constraint = constraint
 
+        if constraint == SQLConstraint.primary:
+            self._destructive = True
+
 
 class RemoveConstraint(MigrationStep):
     def __init__(self, column_name: str, constraint: str):
         self.column_name = column_name
         self.constraint = constraint
+
+        if constraint == SQLConstraint.primary:
+            self._destructive = True
+
+
+class Migration:
+    def __init__(self, table: str, steps: list[MigrationStep]):
+        self.table = table
+        self.steps = steps
+
+    def is_destructive(self):
+        return len([x for x in self.steps if x._destructive]) > 0
+    
+    @staticmethod
+    def _step_key_function(step: MigrationStep):
+        if type(step) == AddCol:
+            return 1
+
+        elif type(step) == RetypeCol:
+            return 3
+
+        elif type(step) == AddConstraint:
+            return 3
+
+        elif type(step) == RemoveConstraint:
+            return 3
+        
+        elif type(step) == DropCol:
+            return 4
+        
+        elif type(step) == RenameCol:
+            return 5
+        
+        
+        return 0
+    
+    def sort(self):
+        self.steps.sort(key=self._step_key_function)
 
 
 class PWEngine(abc.ABC):
@@ -94,12 +148,3 @@ class PWEngine(abc.ABC):
 
     def execute_migration(self, migration: Migration, force: bool = False):
         pass
-
-
-class SQLType:
-    integer = "integer"
-    date_time = "date-time"
-    string = "string"
-    number = "number"
-    boolean = "boolean"
-    byte_data = "bytes"
