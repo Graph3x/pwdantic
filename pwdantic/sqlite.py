@@ -126,7 +126,7 @@ class SqliteEngine(PWEngine):
         column_type = self._transfer_type_to_standard(column_data.pop(0))
 
         nullable = None
-        primary = None
+        primary = False
         default = None
         unique = False
 
@@ -226,7 +226,8 @@ class SqliteEngine(PWEngine):
         migration = MigrationEngine().generate_migration(
             table, current_columns, new_columns
         )
-        self.execute_migration(migration)
+        if len(migration.steps) > 0:
+            self.execute_migration(migration)
 
     def migrate(self, table: str, columns: list[SQLColumn]):
         matched_tables = self.cursor.execute(

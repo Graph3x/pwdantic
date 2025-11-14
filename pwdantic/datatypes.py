@@ -38,6 +38,9 @@ class SQLColumn:
     def __str__(self):
         return f"{self.name}: {("nullable " if self.nullable else "")}{("unique " if self.unique else "")}{("primary " if self.primary_key else "")}{self.datatype} ({self.default})"
 
+    def signature(self):
+        return f"{self.datatype}{self.nullable}{self.default}{self.primary_key}{self.unique}"
+
 
 class InvalidMigrationError(Exception):
     pass
@@ -54,11 +57,16 @@ class DesctructiveMigrationStep(MigrationStep):
 class AddCol(MigrationStep):
     def __init__(self, column: SQLColumn):
         self.column = column
-
+    
+    def __str__(self) -> str:
+        return f"ADD {self.column.name}"
 
 class DropCol(DesctructiveMigrationStep):
     def __init__(self, column_name: str):
         self.column_name = column_name
+
+    def __str__(self) -> str:
+        return f"DROP {self.column_name}"
 
 
 class RenameCol(MigrationStep):
@@ -66,12 +74,19 @@ class RenameCol(MigrationStep):
         self.old_name = old_name
         self.new_name = new_name
 
+    def __str__(self) -> str:
+        return f"RENAME {self.old_name} to {self.new_name}"
+
+
 
 class RetypeCol(DesctructiveMigrationStep):
     def __init__(self, column_name: str, old_type: str, new_type: str):
         self.column_name = column_name
         self.old_type = old_type
         self.new_type = new_type
+
+    def __str__(self) -> str:
+        return f"RETYPE {self.column_name} from {self.old_type} to {self.new_type}"
 
 
 class AddConstraint(MigrationStep):
@@ -82,6 +97,9 @@ class AddConstraint(MigrationStep):
         if constraint == SQLConstraint.primary:
             self._destructive = True
 
+    def __str__(self) -> str:
+        return f"ADD {self.constraint} to {self.column_name}"
+
 
 class RemoveConstraint(MigrationStep):
     def __init__(self, column_name: str, constraint: str):
@@ -91,6 +109,20 @@ class RemoveConstraint(MigrationStep):
         if constraint == SQLConstraint.primary:
             self._destructive = True
 
+    def __str__(self) -> str:
+        return f"REMOVE {self.constraint} from {self.column_name}"
+
+
+
+class ChangeDefault(MigrationStep):
+    def __init__(self, column_name: str, new: Any):
+        self.column_name = column_name
+        self.new_default = new
+
+    def __str__(self) -> str:
+        return f"DEFAULT {self.column_name} to {self.new_default}"
+
+
 
 class Migration:
     def __init__(self, table: str, steps: list[MigrationStep]):
@@ -99,7 +131,7 @@ class Migration:
 
     def is_destructive(self):
         return len([x for x in self.steps if x._destructive]) > 0
-    
+
     @staticmethod
     def _step_key_function(step: MigrationStep):
         if type(step) == AddCol:
@@ -113,16 +145,15 @@ class Migration:
 
         elif type(step) == RemoveConstraint:
             return 3
-        
+
         elif type(step) == DropCol:
             return 4
-        
+
         elif type(step) == RenameCol:
             return 5
-        
-        
+
         return 0
-    
+
     def sort(self):
         self.steps.sort(key=self._step_key_function)
 

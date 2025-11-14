@@ -20,22 +20,30 @@ class MigrationTestModelOld(PWModel):
 
 class MigrationTestModelNew(PWModel):
     pk: int | None = None
-    unq_string: str
+    unq_string: str | None = "q"
     the_same_int: int | None = None
+    modify_me: int = 7
     new_col: str | None = "default"
 
     @classmethod
     def bind(cls, engine):
         super().bind(
             engine,
-            primary_key="unq_string",
-            unique=["pk"],
+            primary_key="pk",
+            unique=["unq_string"],
             table="migration_test",
         )
 
 
 def automatic_migration(engine: PWEngine):
     MigrationTestModelOld.bind(engine)
+
+    a = MigrationTestModelOld(unq_string="hello", modify_me=8)
+    b = MigrationTestModelOld(modify_me=5, nullable_int=1)
+
+    a.save()
+    b.save()
+
     MigrationTestModelNew.bind(engine)
 
 
@@ -66,8 +74,9 @@ def manual_migration(engine: PWEngine):
 
 def main():
     engine = PWEngineFactory.create_sqlite3_engine("test.db")
-    manual_migration(engine)
-
+    engine._drop_table("migration_test")
+    #manual_migration(engine)
+    automatic_migration(engine)
 
 if __name__ == "__main__":
     main()
