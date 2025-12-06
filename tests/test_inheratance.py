@@ -1,4 +1,4 @@
-from dbtogo.dbmodel import DBModel
+from dbtogo import DBModel
 from dbtogo.serialization import GeneralSQLSerializer
 
 
