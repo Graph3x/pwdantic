@@ -79,7 +79,7 @@ class GeneralSQLSerializer:
 
         return cols
 
-    def serialize_object(self, obj: DBModel, no_bind: bool = False) -> dict[str, Any]:
+    def serialize_object(self, obj: DBModel) -> dict[str, Any]:
         columns = self.serialize_schema(obj.__class__.__name__, obj.model_json_schema())
         obj_data = {}
 
