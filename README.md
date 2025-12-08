@@ -1,5 +1,5 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/Graph3x/dbtogo/ci.yml)
-![PyPI - Downloads](https: //img.shields.io/pypi/dm/dbtogo)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/dbtogo)
 
 
 # DBTogo
