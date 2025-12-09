@@ -3,7 +3,8 @@
 
 
 # DBTogo
-Python ORM with focus on simplicity and compatibility.
+#### Python ORM with focus on simplicity and compatibility.
+
 DBTogo is the way you interact with SQL databases in Python as simply and seamlessly as possible. Its goal is to completely abstract the db away, providing a simple and Python native interface.
 
 Advantages of DBTogo include:
